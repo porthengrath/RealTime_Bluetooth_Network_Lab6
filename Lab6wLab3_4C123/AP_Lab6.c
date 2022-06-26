@@ -1,6 +1,6 @@
 // AP_Lab6.c
 // Runs on either MSP432 or TM4C123
-// see GPIO.c file for hardware connections 
+// see GPIO.c file for hardware connections
 
 // Daniel Valvano and Jonathan Valvano
 // November 20, 2016
@@ -11,6 +11,7 @@
 #include "../inc/UART1.h"
 #include "../inc/AP.h"
 #include "AP_Lab6.h"
+
 //**debug macros**APDEBUG defined in AP.h********
 #ifdef APDEBUG
 #define OutString(STRING) UART0_OutString(STRING)
@@ -27,25 +28,31 @@
 //****links into AP.c**************
 extern const uint32_t RECVSIZE;
 extern uint8_t RecvBuf[];
-typedef struct characteristics{
+
+typedef struct characteristics
+{
   uint16_t theHandle;          // each object has an ID
   uint16_t size;               // number of bytes in user data (1,2,4,8)
   uint8_t *pt;                 // pointer to user data, stored little endian
   void (*callBackRead)(void);  // action if SNP Characteristic Read Indication
   void (*callBackWrite)(void); // action if SNP Characteristic Write Indication
-}characteristic_t;
+} characteristic_t;
+
 extern const uint32_t MAXCHARACTERISTICS;
 extern uint32_t CharacteristicCount;
 extern characteristic_t CharacteristicList[];
-typedef struct NotifyCharacteristics{
-  uint16_t uuid;               // user defined 
-  uint16_t theHandle;          // each object has an ID (used to notify)
-  uint16_t CCCDhandle;         // generated/assigned by SNP
-  uint16_t CCCDvalue;          // sent by phone to this object
-  uint16_t size;               // number of bytes in user data (1,2,4,8)
-  uint8_t *pt;                 // pointer to user data array, stored little endian
-  void (*callBackCCCD)(void);  // action if SNP CCCD Updated Indication
-}NotifyCharacteristic_t;
+
+typedef struct NotifyCharacteristics
+{
+  uint16_t uuid;              // user defined
+  uint16_t theHandle;         // each object has an ID (used to notify)
+  uint16_t CCCDhandle;        // generated/assigned by SNP
+  uint16_t CCCDvalue;         // sent by phone to this object
+  uint16_t size;              // number of bytes in user data (1,2,4,8)
+  uint8_t *pt;                // pointer to user data array, stored little endian
+  void (*callBackCCCD)(void); // action if SNP CCCD Updated Indication
+} NotifyCharacteristic_t;
+
 extern const uint32_t NOTIFYMAXCHARACTERISTICS;
 extern uint32_t NotifyCharacteristicCount;
 extern NotifyCharacteristic_t NotifyCharacteristicList[];
@@ -58,21 +65,38 @@ extern NotifyCharacteristic_t NotifyCharacteristicList[];
 // Inputs: pointer to message
 //         stores the FCS into message itself
 // Outputs: none
-void SetFCS(uint8_t *msg){
-//****You implement this function as part of Lab 6*****
+void SetFCS(uint8_t *msg)
+{
+  // read the length from the length field, the 2nd bytes
+  const uint32_t length = AP_GetSize(msg);
 
-  
+  uint8_t fcs = 0;
+
+  // fcs starts from the 2-bytes length field, 2-bytes command field
+  // the N-bytes data field
+  uint8_t idx = 0;
+  for ( idx = 1; idx <= (4 + length); idx++)
+  {
+    // fcs is XOR
+    fcs = fcs ^ msg[idx];
+  }
+
+  // set the fcs
+  msg[idx] = fcs;
 }
 //*************BuildGetStatusMsg**************
 // Create a Get Status message, used in Lab 6
 // Inputs pointer to empty buffer of at least 6 bytes
 // Output none
 // build the necessary NPI message that will Get Status
-void BuildGetStatusMsg(uint8_t *msg){
-// hint: see NPI_GetStatus in AP.c
-//****You implement this function as part of Lab 6*****
-
-  
+void BuildGetStatusMsg(uint8_t *msg)
+{
+  msg[0] = SOF;
+  msg[1] = 0x00;
+  msg[2] = 0x00;
+  msg[3] = 0x55;
+  msg[4] = 0x06;
+  SetFCS(msg);
 }
 //*************Lab6_GetStatus**************
 // Get status of connection, used in Lab 6
@@ -82,11 +106,14 @@ void BuildGetStatusMsg(uint8_t *msg){
 // BB is Advertising Status
 // CC is ATT Status
 // DD is ATT method in progress
-uint32_t Lab6_GetStatus(void){volatile int r; uint8_t sendMsg[8];
+uint32_t Lab6_GetStatus(void)
+{
+  volatile int r;
+  uint8_t sendMsg[8];
   OutString("\n\rGet Status");
   BuildGetStatusMsg(sendMsg);
-  r = AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
-  return (RecvBuf[4]<<24)+(RecvBuf[5]<<16)+(RecvBuf[6]<<8)+(RecvBuf[7]);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
+  return (RecvBuf[4] << 24) + (RecvBuf[5] << 16) + (RecvBuf[6] << 8) + (RecvBuf[7]);
 }
 
 //*************BuildGetVersionMsg**************
@@ -94,21 +121,28 @@ uint32_t Lab6_GetStatus(void){volatile int r; uint8_t sendMsg[8];
 // Inputs pointer to empty buffer of at least 6 bytes
 // Output none
 // build the necessary NPI message that will Get Status
-void BuildGetVersionMsg(uint8_t *msg){
-// hint: see NPI_GetVersion in AP.c
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildGetVersionMsg(uint8_t *msg)
+{
+  // hint: see NPI_GetVersion in AP.c
+  msg[0] = SOF;
+  msg[1] = 0x00;
+  msg[2] = 0x00;
+  msg[3] = 0x35;
+  msg[4] = 0x03;
+  SetFCS(msg);
 }
 //*************Lab6_GetVersion**************
 // Get version of the SNP application running on the CC2650, used in Lab 6
 // Input:  none
 // Output: version
-uint32_t Lab6_GetVersion(void){volatile int r;uint8_t sendMsg[8];
+uint32_t Lab6_GetVersion(void)
+{
+  volatile int r;
+  uint8_t sendMsg[8];
   OutString("\n\rGet Version");
   BuildGetVersionMsg(sendMsg);
-  r = AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE); 
-  return (RecvBuf[5]<<8)+(RecvBuf[6]);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
+  return (RecvBuf[5] << 8) + (RecvBuf[6]);
 }
 
 //*************BuildAddServiceMsg**************
@@ -117,20 +151,39 @@ uint32_t Lab6_GetVersion(void){volatile int r;uint8_t sendMsg[8];
 //        pointer to empty buffer of at least 9 bytes
 // Output none
 // build the necessary NPI message that will add a service
-void BuildAddServiceMsg(uint16_t uuid, uint8_t *msg){
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildAddServiceMsg(uint16_t uuid, uint8_t *msg)
+{
+  msg[0] = SOF;
+
+  // length = 3 bytes
+  msg[1] = 0x03; 
+  msg[2] = 0x00;
+
+  // command 
+  msg[3] = 0x35;
+  msg[4] = 0x81;
+
+  // message - 3 bytes
+  msg[5] = 0x01; //primary service
+  msg[6] = (uint8_t)uuid;
+  msg[7] = (uint8_t)(uuid >> 8);
+
+  // set the FCS
+  SetFCS(msg);
 }
+
 //*************Lab6_AddService**************
 // Add a service, used in Lab 6
 // Inputs uuid is 0xFFF0, 0xFFF1, ...
 // Output APOK if successful,
 //        APFAIL if SNP failure
-int Lab6_AddService(uint16_t uuid){ int r; uint8_t sendMsg[12];
+int Lab6_AddService(uint16_t uuid)
+{
+  int r;
+  uint8_t sendMsg[12];
   OutString("\n\rAdd service");
-  BuildAddServiceMsg(uuid,sendMsg);
-  r = AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);  
+  BuildAddServiceMsg(uuid, sendMsg);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
   return r;
 }
 //*************AP_BuildRegisterServiceMsg**************
@@ -138,40 +191,41 @@ int Lab6_AddService(uint16_t uuid){ int r; uint8_t sendMsg[12];
 // Inputs pointer to empty buffer of at least 6 bytes
 // Output none
 // build the necessary NPI message that will register a service
-void BuildRegisterServiceMsg(uint8_t *msg){
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildRegisterServiceMsg(uint8_t *msg)
+{
+  //****You implement this function as part of Lab 6*****
 }
 //*************Lab6_RegisterService**************
 // Register a service, used in Lab 6
 // Inputs none
 // Output APOK if successful,
 //        APFAIL if SNP failure
-int Lab6_RegisterService(void){ int r; uint8_t sendMsg[8];
+int Lab6_RegisterService(void)
+{
+  int r;
+  uint8_t sendMsg[8];
   OutString("\n\rRegister service");
   BuildRegisterServiceMsg(sendMsg);
-  r = AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
   return r;
 }
 
 //*************BuildAddCharValueMsg**************
 // Create a Add Characteristic Value Declaration message, used in Lab 6
 // Inputs uuid is 0xFFF0, 0xFFF1, ...
-//        permission is GATT Permission, 0=none,1=read,2=write, 3=Read+write 
+//        permission is GATT Permission, 0=none,1=read,2=write, 3=Read+write
 //        properties is GATT Properties, 2=read,8=write,0x0A=read+write, 0x10=notify
 //        pointer to empty buffer of at least 14 bytes
 // Output none
 // build the necessary NPI message that will add a characteristic value
-void BuildAddCharValueMsg(uint16_t uuid,  
-  uint8_t permission, uint8_t properties, uint8_t *msg){
-// set RFU to 0 and
-// set the maximum length of the attribute value=512
-// for a hint see NPI_AddCharValue in AP.c
-// for a hint see first half of AP_AddCharacteristic and first half of AP_AddNotifyCharacteristic
-//****You implement this function as part of Lab 6*****
-  
-    
+void BuildAddCharValueMsg(uint16_t uuid,
+                          uint8_t permission, uint8_t properties, uint8_t *msg)
+{
+  // set RFU to 0 and
+  // set the maximum length of the attribute value=512
+  // for a hint see NPI_AddCharValue in AP.c
+  // for a hint see first half of AP_AddCharacteristic and first half of AP_AddNotifyCharacteristic
+  //****You implement this function as part of Lab 6*****
 }
 
 //*************BuildAddCharDescriptorMsg**************
@@ -180,23 +234,22 @@ void BuildAddCharValueMsg(uint16_t uuid,
 //        pointer to empty buffer of at least 32 bytes
 // Output none
 // build the necessary NPI message that will add a Descriptor Declaration
-void BuildAddCharDescriptorMsg(char name[], uint8_t *msg){
-// set length and maxlength to the string length
-// set the permissions on the string to read
-// for a hint see NPI_AddCharDescriptor in AP.c
-// for a hint see second half of AP_AddCharacteristic
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildAddCharDescriptorMsg(char name[], uint8_t *msg)
+{
+  // set length and maxlength to the string length
+  // set the permissions on the string to read
+  // for a hint see NPI_AddCharDescriptor in AP.c
+  // for a hint see second half of AP_AddCharacteristic
+  //****You implement this function as part of Lab 6*****
 }
 
 //*************Lab6_AddCharacteristic**************
 // Add a read, write, or read/write characteristic, used in Lab 6
-//        for notify properties, call AP_AddNotifyCharacteristic 
+//        for notify properties, call AP_AddNotifyCharacteristic
 // Inputs uuid is 0xFFF0, 0xFFF1, ...
-//        thesize is the number of bytes in the user data 1,2,4, or 8 
+//        thesize is the number of bytes in the user data 1,2,4, or 8
 //        pt is a pointer to the user data, stored little endian
-//        permission is GATT Permission, 0=none,1=read,2=write, 3=Read+write 
+//        permission is GATT Permission, 0=none,1=read,2=write, 3=Read+write
 //        properties is GATT Properties, 2=read,8=write,0x0A=read+write
 //        name is a null-terminated string, maximum length of name is 20 bytes
 //        (*ReadFunc) called before it responses with data from internal structure
@@ -204,30 +257,36 @@ void BuildAddCharDescriptorMsg(char name[], uint8_t *msg){
 // Output APOK if successful,
 //        APFAIL if name is empty, more than 8 characteristics, or if SNP failure
 int Lab6_AddCharacteristic(uint16_t uuid, uint16_t thesize, void *pt, uint8_t permission,
-  uint8_t properties, char name[], void(*ReadFunc)(void), void(*WriteFunc)(void)){
-  int r; uint16_t handle; 
-  uint8_t sendMsg[32];  
-  if(thesize>8) return APFAIL;
-  if(name[0]==0) return APFAIL;       // empty name
-  if(CharacteristicCount>=MAXCHARACTERISTICS) return APFAIL; // error
-  BuildAddCharValueMsg(uuid,permission,properties,sendMsg);
+                           uint8_t properties, char name[], void (*ReadFunc)(void), void (*WriteFunc)(void))
+{
+  int r;
+  uint16_t handle;
+  uint8_t sendMsg[32];
+  if (thesize > 8)
+    return APFAIL;
+  if (name[0] == 0)
+    return APFAIL; // empty name
+  if (CharacteristicCount >= MAXCHARACTERISTICS)
+    return APFAIL; // error
+  BuildAddCharValueMsg(uuid, permission, properties, sendMsg);
   OutString("\n\rAdd CharValue");
-  r=AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
-  if(r == APFAIL) return APFAIL;
-  handle = (RecvBuf[7]<<8)+RecvBuf[6]; // handle for this characteristic
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
+  if (r == APFAIL)
+    return APFAIL;
+  handle = (RecvBuf[7] << 8) + RecvBuf[6]; // handle for this characteristic
   OutString("\n\rAdd CharDescriptor");
-  BuildAddCharDescriptorMsg(name,sendMsg);
-  r=AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
-  if(r == APFAIL) return APFAIL;
+  BuildAddCharDescriptorMsg(name, sendMsg);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
+  if (r == APFAIL)
+    return APFAIL;
   CharacteristicList[CharacteristicCount].theHandle = handle;
   CharacteristicList[CharacteristicCount].size = thesize;
-  CharacteristicList[CharacteristicCount].pt = (uint8_t *) pt;
+  CharacteristicList[CharacteristicCount].pt = (uint8_t *)pt;
   CharacteristicList[CharacteristicCount].callBackRead = ReadFunc;
   CharacteristicList[CharacteristicCount].callBackWrite = WriteFunc;
   CharacteristicCount++;
   return APOK; // OK
-} 
-  
+}
 
 //*************BuildAddNotifyCharDescriptorMsg**************
 // Create a Add Notify Characteristic Descriptor Declaration message, used in Lab 6
@@ -235,49 +294,54 @@ int Lab6_AddCharacteristic(uint16_t uuid, uint16_t thesize, void *pt, uint8_t pe
 //        pointer to empty buffer of at least bytes
 // Output none
 // build the necessary NPI message that will add a Descriptor Declaration
-void BuildAddNotifyCharDescriptorMsg(char name[], uint8_t *msg){
-// set length and maxlength to the string length
-// set the permissions on the string to read
-// set User Description String
-// set CCCD parameters read+write
-// for a hint see NPI_AddCharDescriptor4 in VerySimpleApplicationProcessor.c
-// for a hint see second half of AP_AddNotifyCharacteristic
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildAddNotifyCharDescriptorMsg(char name[], uint8_t *msg)
+{
+  // set length and maxlength to the string length
+  // set the permissions on the string to read
+  // set User Description String
+  // set CCCD parameters read+write
+  // for a hint see NPI_AddCharDescriptor4 in VerySimpleApplicationProcessor.c
+  // for a hint see second half of AP_AddNotifyCharacteristic
+  //****You implement this function as part of Lab 6*****
 }
-  
+
 //*************Lab6_AddNotifyCharacteristic**************
 // Add a notify characteristic, used in Lab 6
-//        for read, write, or read/write characteristic, call AP_AddCharacteristic 
+//        for read, write, or read/write characteristic, call AP_AddCharacteristic
 // Inputs uuid is 0xFFF0, 0xFFF1, ...
-//        thesize is the number of bytes in the user data 1,2,4, or 8 
+//        thesize is the number of bytes in the user data 1,2,4, or 8
 //        pt is a pointer to the user data, stored little endian
 //        name is a null-terminated string, maximum length of name is 20 bytes
 //        (*CCCDfunc) called after it accepts , changing CCCDvalue
 // Output APOK if successful,
 //        APFAIL if name is empty, more than 4 notify characteristics, or if SNP failure
-int Lab6_AddNotifyCharacteristic(uint16_t uuid, uint16_t thesize, void *pt,   
-  char name[], void(*CCCDfunc)(void)){
-  int r; uint16_t handle; 
-  uint8_t sendMsg[36];  
-  if(thesize>8) return APFAIL;
-  if(NotifyCharacteristicCount>=NOTIFYMAXCHARACTERISTICS) return APFAIL; // error
-  BuildAddCharValueMsg(uuid,0,0x10,sendMsg);
+int Lab6_AddNotifyCharacteristic(uint16_t uuid, uint16_t thesize, void *pt,
+                                 char name[], void (*CCCDfunc)(void))
+{
+  int r;
+  uint16_t handle;
+  uint8_t sendMsg[36];
+  if (thesize > 8)
+    return APFAIL;
+  if (NotifyCharacteristicCount >= NOTIFYMAXCHARACTERISTICS)
+    return APFAIL; // error
+  BuildAddCharValueMsg(uuid, 0, 0x10, sendMsg);
   OutString("\n\rAdd Notify CharValue");
-  r=AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
-  if(r == APFAIL) return APFAIL;
-  handle = (RecvBuf[7]<<8)+RecvBuf[6]; // handle for this characteristic
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
+  if (r == APFAIL)
+    return APFAIL;
+  handle = (RecvBuf[7] << 8) + RecvBuf[6]; // handle for this characteristic
   OutString("\n\rAdd CharDescriptor");
-  BuildAddNotifyCharDescriptorMsg(name,sendMsg);
-  r=AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
-  if(r == APFAIL) return APFAIL;
+  BuildAddNotifyCharDescriptorMsg(name, sendMsg);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
+  if (r == APFAIL)
+    return APFAIL;
   NotifyCharacteristicList[NotifyCharacteristicCount].uuid = uuid;
   NotifyCharacteristicList[NotifyCharacteristicCount].theHandle = handle;
-  NotifyCharacteristicList[NotifyCharacteristicCount].CCCDhandle = (RecvBuf[8]<<8)+RecvBuf[7]; // handle for this CCCD
-  NotifyCharacteristicList[NotifyCharacteristicCount].CCCDvalue = 0; // notify initially off
+  NotifyCharacteristicList[NotifyCharacteristicCount].CCCDhandle = (RecvBuf[8] << 8) + RecvBuf[7]; // handle for this CCCD
+  NotifyCharacteristicList[NotifyCharacteristicCount].CCCDvalue = 0;                               // notify initially off
   NotifyCharacteristicList[NotifyCharacteristicCount].size = thesize;
-  NotifyCharacteristicList[NotifyCharacteristicCount].pt = (uint8_t *) pt;
+  NotifyCharacteristicList[NotifyCharacteristicCount].pt = (uint8_t *)pt;
   NotifyCharacteristicList[NotifyCharacteristicCount].callBackCCCD = CCCDfunc;
   NotifyCharacteristicCount++;
   return APOK; // OK
@@ -289,30 +353,28 @@ int Lab6_AddNotifyCharacteristic(uint16_t uuid, uint16_t thesize, void *pt,
 //        pointer to empty buffer of at least 36 bytes
 // Output none
 // build the necessary NPI message to set Device name
-void BuildSetDeviceNameMsg(char name[], uint8_t *msg){
-// for a hint see NPI_GATTSetDeviceNameMsg in VerySimpleApplicationProcessor.c
-// for a hint see NPI_GATTSetDeviceName in AP.c
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildSetDeviceNameMsg(char name[], uint8_t *msg)
+{
+  // for a hint see NPI_GATTSetDeviceNameMsg in VerySimpleApplicationProcessor.c
+  // for a hint see NPI_GATTSetDeviceName in AP.c
+  //****You implement this function as part of Lab 6*****
 }
 //*************BuildSetAdvertisementData1Msg**************
 // Create a Set Advertisement Data message, used in Lab 6
 // Inputs pointer to empty buffer of at least 16 bytes
 // Output none
 // build the necessary NPI message for Non-connectable Advertisement Data
-void BuildSetAdvertisementData1Msg(uint8_t *msg){
-// for a hint see NPI_SetAdvertisementMsg in VerySimpleApplicationProcessor.c
-// for a hint see NPI_SetAdvertisement1 in AP.c
-// Non-connectable Advertisement Data
-// GAP_ADTYPE_FLAGS,DISCOVERABLE | no BREDR  
-// Texas Instruments Company ID 0x000D
-// TI_ST_DEVICE_ID = 3
-// TI_ST_KEY_DATA_ID
-// Key state=0
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildSetAdvertisementData1Msg(uint8_t *msg)
+{
+  // for a hint see NPI_SetAdvertisementMsg in VerySimpleApplicationProcessor.c
+  // for a hint see NPI_SetAdvertisement1 in AP.c
+  // Non-connectable Advertisement Data
+  // GAP_ADTYPE_FLAGS,DISCOVERABLE | no BREDR
+  // Texas Instruments Company ID 0x000D
+  // TI_ST_DEVICE_ID = 3
+  // TI_ST_KEY_DATA_ID
+  // Key state=0
+  //****You implement this function as part of Lab 6*****
 }
 
 //*************BuildSetAdvertisementDataMsg**************
@@ -321,12 +383,11 @@ void BuildSetAdvertisementData1Msg(uint8_t *msg){
 //        pointer to empty buffer of at least 36 bytes
 // Output none
 // build the necessary NPI message for Scan Response Data
-void BuildSetAdvertisementDataMsg(char name[], uint8_t *msg){
-// for a hint see NPI_SetAdvertisementDataMsg in VerySimpleApplicationProcessor.c
-// for a hint see NPI_SetAdvertisementData in AP.c
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildSetAdvertisementDataMsg(char name[], uint8_t *msg)
+{
+  // for a hint see NPI_SetAdvertisementDataMsg in VerySimpleApplicationProcessor.c
+  // for a hint see NPI_SetAdvertisementData in AP.c
+  //****You implement this function as part of Lab 6*****
 }
 //*************BuildStartAdvertisementMsg**************
 // Create a Start Advertisement Data message, used in Lab 6
@@ -334,12 +395,11 @@ void BuildSetAdvertisementDataMsg(char name[], uint8_t *msg){
 //        pointer to empty buffer of at least 20 bytes
 // Output none
 // build the necessary NPI message to start advertisement
-void BuildStartAdvertisementMsg(uint16_t interval, uint8_t *msg){
-// for a hint see NPI_StartAdvertisementMsg in VerySimpleApplicationProcessor.c
-// for a hint see NPI_StartAdvertisement in AP.c
-//****You implement this function as part of Lab 6*****
-  
-  
+void BuildStartAdvertisementMsg(uint16_t interval, uint8_t *msg)
+{
+  // for a hint see NPI_StartAdvertisementMsg in VerySimpleApplicationProcessor.c
+  // for a hint see NPI_StartAdvertisement in AP.c
+  //****You implement this function as part of Lab 6*****
 }
 
 //*************Lab6_StartAdvertisement**************
@@ -347,19 +407,21 @@ void BuildStartAdvertisementMsg(uint16_t interval, uint8_t *msg){
 // Input:  none
 // Output: APOK if successful,
 //         APFAIL if notification not configured, or if SNP failure
-int Lab6_StartAdvertisement(void){volatile int r; uint8_t sendMsg[40];
+int Lab6_StartAdvertisement(void)
+{
+  volatile int r;
+  uint8_t sendMsg[40];
   OutString("\n\rSet Device name");
-  BuildSetDeviceNameMsg("Shape the World",sendMsg);
-  r =AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
+  BuildSetDeviceNameMsg("Shape the World", sendMsg);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
   OutString("\n\rSetAdvertisement1");
   BuildSetAdvertisementData1Msg(sendMsg);
-  r =AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
   OutString("\n\rSetAdvertisement Data");
-  BuildSetAdvertisementDataMsg("Shape the World",sendMsg);
-  r =AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
+  BuildSetAdvertisementDataMsg("Shape the World", sendMsg);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
   OutString("\n\rStartAdvertisement");
-  BuildStartAdvertisementMsg(100,sendMsg);
-  r =AP_SendMessageResponse(sendMsg,RecvBuf,RECVSIZE);
+  BuildStartAdvertisementMsg(100, sendMsg);
+  r = AP_SendMessageResponse(sendMsg, RecvBuf, RECVSIZE);
   return r;
 }
-
