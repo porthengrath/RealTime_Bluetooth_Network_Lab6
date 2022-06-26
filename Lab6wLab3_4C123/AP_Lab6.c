@@ -458,7 +458,7 @@ void BuildSetDeviceNameMsg(char name[], uint8_t *msg)
   // for a hint see NPI_GATTSetDeviceName in AP.c
   
   // len
-  const len = strlen(name);
+  const uint8_t len = strlen(name);
 
   // sof
   msg[0] = SOF;
@@ -468,7 +468,7 @@ void BuildSetDeviceNameMsg(char name[], uint8_t *msg)
   msg[4] = 0x8C;
 
   // Generic Access Service
-  msg[5] - 0x01;
+  msg[5] = 0x01;
 
   // name
   msg[6] = 0x00;
@@ -540,7 +540,7 @@ void BuildSetAdvertisementDataMsg(char name[], uint8_t *msg)
   // for a hint see NPI_SetAdvertisementDataMsg in VerySimpleApplicationProcessor.c
   // for a hint see NPI_SetAdvertisementData in AP.c
   // len
-  const len = strlen(name);
+  const uint8_t len = strlen(name);
 
   msg[0] = SOF;
 
@@ -551,8 +551,8 @@ void BuildSetAdvertisementDataMsg(char name[], uint8_t *msg)
   // scan response data
   msg[5] = 0x00;
 
-  // len
-  msg[6] = len;
+  // len, include null
+  msg[6] = len + 1;
 
   // type = LOCAL_NAME_COMPLETE
   msg[7] = 0x09;
@@ -587,7 +587,7 @@ void BuildSetAdvertisementDataMsg(char name[], uint8_t *msg)
   msg[idx + 8] = 0x00;           
   
   // length field, exclude sof, 2-bytes length and 2-bytes cmd
-  msg[1] = (idx + 9) + 1 - 5;
+  msg[1] = (idx + 9) - 5;
   msg[2] = 0;
 
   SetFCS(msg);
